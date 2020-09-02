@@ -337,6 +337,9 @@ export class Editor extends React.Component {
         formattedText.push(lastStr);
       }
     });
+
+    console.log('inputText', inputText);
+    console.log('formattedText', formattedText);
     return formattedText;
   }
 
@@ -368,6 +371,7 @@ export class Editor extends React.Component {
   }
 
   onChange = (inputText, fromAtBtn) => {
+    console.log('onChange', inputText);
     let text = inputText;
     const prevText = this.state.inputText;
     let selection = {...this.state.selection};
@@ -560,12 +564,12 @@ export class Editor extends React.Component {
               </View>
               <TextInput
                 ref={input => props.onRef && props.onRef(input)}
-                {...this.props}
                 style={[styles.input, editorStyles.input]}
                 multiline
                 name={'message'}
                 value={state.inputText}
                 onBlur={this.props.onBlur || props.toggleEditor}
+                onFocus={this.props.onFocus}
                 onChangeText={this.onChange}
                 selection={this.state.selection}
                 onSelectionChange={this.handleSelectionChange}
