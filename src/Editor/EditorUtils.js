@@ -7,8 +7,8 @@ export const displayTextWithMentions = (inputText, formatMentionNode) => {
   /**
    * Use this function to parse mentions markup @[username](id) in the string value.
    */
-  if (inputText === "") return null;
-  const retLines = inputText.split("\n");
+  if (inputText === '') return null;
+  const retLines = inputText.split('\n');
   const formattedText = [];
   retLines.forEach((retLine, rowIndex) => {
     const mentions = EU.findMentions(retLine);
@@ -20,7 +20,7 @@ export const displayTextWithMentions = (inputText, formatMentionNode) => {
         formattedText.push(initialStr);
         const formattedMention = formatMentionNode(
           `@${men.username}`,
-          `${index}-${men.id}-${rowIndex}`
+          `${index}-${men.id}-${rowIndex}`,
         );
         formattedText.push(formattedMention);
         if (mentions.length - 1 === index) {
@@ -38,18 +38,18 @@ export const displayTextWithMentions = (inputText, formatMentionNode) => {
 
 export const EU = {
   specialTagsEnum: {
-    mention: "mention",
-    strong: "strong",
-    italic: "italic",
-    underline: "underline"
+    mention: 'mention',
+    strong: 'strong',
+    italic: 'italic',
+    underline: 'underline',
   },
   isKeysAreSame: (src, dest) => src.toString() === dest.toString(),
   getLastItemInMap: map => Array.from(map)[map.size - 1],
   getLastKeyInMap: map => Array.from(map.keys())[map.size - 1],
   getLastValueInMap: map => Array.from(map.values())[map.size - 1],
-  updateRemainingMentionsIndexes: (map, { start, end }, diff, shouldAdd) => {
+  updateRemainingMentionsIndexes: (map, {start, end}, diff, shouldAdd) => {
     var newMap = new Map(map);
-    const keys = EU.getSelectedMentionKeys(newMap, { start, end });
+    const keys = EU.getSelectedMentionKeys(newMap, {start, end});
     keys.forEach(key => {
       const newKey = shouldAdd
         ? [key[0] + diff, key[1] + diff]
@@ -61,12 +61,12 @@ export const EU = {
     });
     return newMap;
   },
-  getSelectedMentionKeys: (map, { start, end }) => {
+  getSelectedMentionKeys: (map, {start, end}) => {
     // mention [2, 5],
     // selection [3, 6]
     const mantionKeys = [...map.keys()];
     const keys = mantionKeys.filter(
-      ([a, b]) => EU.between(a, start, end) || EU.between(b, start, end)
+      ([a, b]) => EU.between(a, start, end) || EU.between(b, start, end),
     );
     return keys;
   },
@@ -83,7 +83,7 @@ export const EU = {
      * meaning their indexes in the string start from 0
      * While user made a selection automatically add mention in the selection.
      */
-    const sel = { ...selection };
+    const sel = {...selection};
     mentions.forEach((value, [menStart, menEnd]) => {
       if (EU.diff(prevSelc.start, prevSelc.end) < EU.diff(sel.start, sel.end)) {
         //user selecting.
@@ -113,7 +113,7 @@ export const EU = {
     selection,
     prevSelc,
     mentions,
-    isTrackingStarted
+    isTrackingStarted,
   ) => {
     /**
      * Both Mentions and Selections are 0-th index based in the strings
@@ -121,8 +121,10 @@ export const EU = {
      * or to the end of mention based on user traverse direction.
      */
 
-    const sel = { ...selection };
-    if (isTrackingStarted) return sel;
+    const sel = {...selection};
+    if (isTrackingStarted) {
+      return sel;
+    }
     mentions.forEach((value, [menStart, menEnd]) => {
       if (prevSelc.start > sel.start) {
         //traversing Right -to- Left  <=
@@ -145,7 +147,7 @@ export const EU = {
   between: (x, min, max) => x >= min && x <= max,
   sum: (x, y) => x + y,
   diff: (x, y) => Math.abs(x - y),
-  isEmpty: str => str === "",
+  isEmpty: str => str === '',
   getMentionsWithInputText: inputText => {
     /**
      * translate provided string e.g. `Hey @[mrazadar](id:1) this is good work.`
@@ -154,10 +156,12 @@ export const EU = {
      */
 
     const map = new Map();
-    let newValue = "";
+    let newValue = '';
 
-    if (inputText === "") return null;
-    const retLines = inputText.split("\n");
+    if (inputText === '') {
+      return null;
+    }
+    const retLines = inputText.split('\n');
 
     retLines.forEach((retLine, rowIndex) => {
       const mentions = EU.findMentions(retLine);
@@ -171,7 +175,7 @@ export const EU = {
           const menEndIndex = men.start + (username.length - 1);
           map.set([men.start - endIndexDiff, menEndIndex - endIndexDiff], {
             id: men.id,
-            username: men.username
+            username: men.username,
           });
           //indexes diff with the new formatted string.
           endIndexDiff = endIndexDiff + Math.abs(men.end - menEndIndex);
@@ -186,12 +190,12 @@ export const EU = {
         newValue = newValue.concat(retLine);
       }
       if (rowIndex !== retLines.length - 1) {
-        newValue = newValue.concat("\n");
+        newValue = newValue.concat('\n');
       }
     });
     return {
       map,
-      newValue
+      newValue,
     };
   },
   findMentions: val => {
@@ -204,13 +208,14 @@ export const EU = {
      */
     let reg = /@\[([^\]]+?)\]\(id:([^\]]+?)\)/gim;
     let indexes = [];
+    let match;
     while ((match = reg.exec(val))) {
       indexes.push({
         start: match.index,
         end: reg.lastIndex - 1,
         username: match[1],
         id: match[2],
-        type: EU.specialTagsEnum.mention
+        type: EU.specialTagsEnum.mention,
       });
     }
     return indexes;
@@ -229,7 +234,7 @@ export const EU = {
      */
     return next[key] && next[key] !== current[key];
   },
-  displayTextWithMentions: displayTextWithMentions
+  displayTextWithMentions,
 };
 
 export default EU;

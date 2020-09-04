@@ -27,6 +27,8 @@ export class Editor extends React.Component {
     editorStyles: PropTypes.object,
     placeholder: PropTypes.string,
     renderMentionList: PropTypes.func,
+    editable: PropTypes.bool,
+    displayKey: PropTypes.string,
   };
 
   constructor(props) {
@@ -252,7 +254,9 @@ export class Editor extends React.Component {
       menIndex,
     );
 
-    const username = `@${user.username}`;
+    console.log('onSuggestionTap', user);
+    // const username = `@${user.username}`;
+    const username = `@${user[this.props.displayKey]}`;
     const text = `${initialStr}${username} ${remStr}`;
     //'@[__display__](__id__)' ///find this trigger parsing from react-mentions
 
@@ -326,7 +330,8 @@ export class Editor extends React.Component {
       lastIndex = end + 1;
       formattedText.push(initialStr);
       const formattedMention = this.formatMentionNode(
-        `@${men.username}`,
+        // `@${men.username}`,
+        `@${men[this.props.displayKey]}`,
         `${start}-${men.id}-${end}`,
       );
       formattedText.push(formattedMention);
@@ -352,7 +357,9 @@ export class Editor extends React.Component {
         start === 1 ? '' : inputText.substring(lastIndex, start);
       lastIndex = end + 1;
       formattedText = formattedText.concat(initialStr);
-      formattedText = formattedText.concat(`@[${men.username}](id:${men.id})`);
+      formattedText = formattedText.concat(
+        `@[${men[this.props.displayKey]}](id:${men.id})`,
+      );
       if (
         EU.isKeysAreSame(EU.getLastKeyInMap(this.mentionsMap), [start, end])
       ) {
@@ -567,6 +574,7 @@ export class Editor extends React.Component {
                 style={[styles.input, editorStyles.input]}
                 multiline
                 name={'message'}
+                editable={this.props.editable}
                 value={state.inputText}
                 onBlur={this.props.onBlur || props.toggleEditor}
                 onFocus={this.props.onFocus}
