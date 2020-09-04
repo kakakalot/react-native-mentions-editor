@@ -1,14 +1,14 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 
 export default StyleSheet.create({
   main: {
-    backgroundColor: '#fff',
+    // backgroundColor: '#fff',
     borderColor: 'red',
     borderWidth: 1,
     flex: 1,
   },
   container: {
-    backgroundColor: '#fff',
+    // backgroundColor: '#fff',
     // borderColor: "green",
     // borderWidth: 1,
     // flex: 1, justifyContent: 'center', flexDirection: 'row',

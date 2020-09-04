@@ -20,7 +20,6 @@ export class Editor extends React.Component {
     initialValue: PropTypes.string,
     clearInput: PropTypes.bool,
     onChange: PropTypes.func,
-    showEditor: PropTypes.bool,
     toggleEditor: PropTypes.func,
     showMentions: PropTypes.bool,
     onHideMentions: PropTypes.func,
@@ -29,6 +28,7 @@ export class Editor extends React.Component {
     renderMentionList: PropTypes.func,
     editable: PropTypes.bool,
     displayKey: PropTypes.string,
+    inputRef: PropTypes.object,
   };
 
   constructor(props) {
@@ -47,6 +47,7 @@ export class Editor extends React.Component {
     }
     this.state = {
       clearInput: props.clearInput,
+      initialValue: props.initialValue,
       inputText: msg,
       formattedText: formattedMsg,
       keyword: '',
@@ -68,9 +69,13 @@ export class Editor extends React.Component {
     this.isTrackingStarted = false;
     this.previousChar = ' ';
   }
+
   static getDerivedStateFromProps(nextProps, prevState) {
     if (nextProps.clearInput !== prevState.clearInput) {
       return {clearInput: nextProps.clearInput};
+    }
+    if (nextProps.initialValue !== prevState.initialValue) {
+      return {initialValue: nextProps.initialValue};
     }
 
     if (nextProps.showMentions && !prevState.showMentions) {
@@ -90,6 +95,18 @@ export class Editor extends React.Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
+    const currentText = this.formatTextWithMentions(this.state.inputText);
+    if (currentText !== this.state.initialValue) {
+      // console.log('componentDidUpdate', this.state.initialValue, currentText);
+      const {newValue} = EU.getMentionsWithInputText(this.state.initialValue);
+      // console.log('componentDidUpdate 2', newValue);
+      const formattedMsg = this.formatText(newValue);
+      this.setState({
+        inputText: newValue,
+        formattedText: formattedMsg,
+      });
+    }
+
     // only update chart if the data has changed
     if (this.state.inputText !== '' && this.state.clearInput) {
       this.setState({
@@ -127,10 +144,9 @@ export class Editor extends React.Component {
   stopTracking() {
     this.isTrackingStarted = false;
     // this.closeSuggestionsPanel();
-    this.setState({
-      isTrackingStarted: false,
-    });
-    this.props.onHideMentions();
+    this.setState({isTrackingStarted: false}, () =>
+      this.props.onHideMentions?.(),
+    );
   }
 
   updateSuggestions(lastKeyword) {
@@ -378,7 +394,7 @@ export class Editor extends React.Component {
   }
 
   onChange = (inputText, fromAtBtn) => {
-    console.log('onChange', inputText);
+    // console.log('onChange', inputText);
     let text = inputText;
     const prevText = this.state.inputText;
     let selection = {...this.state.selection};
@@ -450,7 +466,6 @@ export class Editor extends React.Component {
       );
     } else {
       //update indexes on new charcter add
-
       let charAdded = Math.abs(text.length - prevText.length);
       this.updateMentionsMap(
         {
@@ -478,6 +493,7 @@ export class Editor extends React.Component {
     this.setState({
       inputText: text,
       formattedText: this.formatText(text),
+      initialValue: this.formatTextWithMentions(text),
       // selection,
     });
     this.checkForMention(text, selection);
@@ -515,8 +531,6 @@ export class Editor extends React.Component {
     const {props, state} = this;
     const {editorStyles = {}} = props;
 
-    if (!props.showEditor) return null;
-
     const mentionListProps = {
       list: props.list,
       keyword: state.keyword,
@@ -548,7 +562,6 @@ export class Editor extends React.Component {
             }}
             style={[styles.editorContainer, editorStyles.editorContainer]}>
             <View style={[{height: this.state.editorHeight}]}>
-              {/* <View> */}
               <View
                 style={[
                   styles.formmatedTextWrapper,
@@ -570,7 +583,8 @@ export class Editor extends React.Component {
                 )}
               </View>
               <TextInput
-                ref={input => props.onRef && props.onRef(input)}
+                //ref={input => props.onRef && props.onRef(input)}
+                ref={props.inputRef}
                 style={[styles.input, editorStyles.input]}
                 multiline
                 name={'message'}

@@ -18,10 +18,15 @@ export const displayTextWithMentions = (inputText, formatMentionNode) => {
         const initialStr = retLine.substring(lastIndex, men.start);
         lastIndex = men.end + 1;
         formattedText.push(initialStr);
-        const formattedMention = formatMentionNode(
-          `@${men.username}`,
-          `${index}-${men.id}-${rowIndex}`,
-        );
+        let formattedMention;
+        if (!formatMentionNode) {
+          formattedMention = `@${men.username}`;
+        } else {
+          formattedMention = formatMentionNode(
+            `@${men.username}`,
+            `${index}-${men.id}-${rowIndex}`,
+          );
+        }
         formattedText.push(formattedMention);
         if (mentions.length - 1 === index) {
           const lastStr = retLine.substr(lastIndex); //remaining string
