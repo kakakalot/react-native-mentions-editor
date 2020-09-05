@@ -60,14 +60,15 @@ export class Editor extends React.Component {
         start: 0,
         end: 0,
       },
+      value: '',
+      preSelection: null,
       menIndex: 0,
       showMentions: false,
       editorHeight: 72,
       scrollContentInset: {top: 0, bottom: 0, left: 0, right: 0},
       placeholder: props.placeholder || 'Type something...',
     };
-    this.isTrackingStarted = false;
-    this.previousChar = ' ';
+    this.rawInputText = '';
   }
 
   static getDerivedStateFromProps(nextProps, prevState) {
@@ -95,6 +96,30 @@ export class Editor extends React.Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
+    // if (this.isLock === 0) {
+    //   setTimeout(() => {
+    //     this.isLock = -1;
+    //     this.isUpdated = true;
+    //     this.changed = false;
+    //     let {start, end} = this.state.selection;
+    //     if (
+    //       start > 0 &&
+    //       end > 0 &&
+    //       start < this.state.inputText.length &&
+    //       end < this.state.inputText.length
+    //     ) {
+    //       start++;
+    //       end++;
+    //     }
+    //     const selection = {start, end};
+    //     this.setState({
+    //       inputText: this.state.inputText.toString().trim(),
+    //       preSelection: selection,
+    //       selection,
+    //     });
+    //   }, 0);
+    // }
+
     const currentText = this.formatTextWithMentions(this.state.inputText);
     if (currentText !== this.state.initialValue) {
       // console.log('componentDidUpdate', this.state.initialValue, currentText);
@@ -143,7 +168,6 @@ export class Editor extends React.Component {
 
   stopTracking() {
     this.isTrackingStarted = false;
-    // this.closeSuggestionsPanel();
     this.setState({isTrackingStarted: false}, () =>
       this.props.onHideMentions?.(),
     );
@@ -168,24 +192,28 @@ export class Editor extends React.Component {
      * @ char e.g. @billroy
      */
     if (this.isTrackingStarted) {
-      let pattern = null;
-      if (this.state.triggerLocation === 'new-word-only') {
-        pattern = new RegExp(
-          `\\B${this.state.trigger}[a-z0-9_-]+|\\B${this.state.trigger}`,
-          'gi',
-        );
+      if (Platform.OS === 'android') {
+        this.updateSuggestions(inputText); // last keyword
       } else {
-        //anywhere
-        pattern = new RegExp(
-          `\\${this.state.trigger}[a-z0-9_-]+|\\${this.state.trigger}`,
-          'i',
-        );
-      }
-      const str = inputText.substr(this.menIndex);
-      const keywordArray = str.match(pattern);
-      if (keywordArray && !!keywordArray.length) {
-        const lastKeyword = keywordArray[keywordArray.length - 1];
-        this.updateSuggestions(lastKeyword);
+        let pattern = null;
+        if (this.state.triggerLocation === 'new-word-only') {
+          pattern = new RegExp(
+            `\\B${this.state.trigger}[a-z0-9_-]+|\\B${this.state.trigger}`,
+            'gi',
+          );
+        } else {
+          //anywhere
+          pattern = new RegExp(
+            `\\${this.state.trigger}[a-z0-9_-]+|\\${this.state.trigger}`,
+            'i',
+          );
+        }
+        const str = inputText.substr(this.menIndex);
+        const keywordArray = str.match(pattern);
+        if (keywordArray && !!keywordArray.length) {
+          const lastKeyword = keywordArray[keywordArray.length - 1];
+          this.updateSuggestions(lastKeyword);
+        }
       }
     }
   }
@@ -198,17 +226,32 @@ export class Editor extends React.Component {
     const menIndex = selection.start - 1;
     // const lastChar = inputText.substr(inputText.length - 1);
     const lastChar = inputText.substr(menIndex, 1);
-    const wordBoundry =
-      this.state.triggerLocation === 'new-word-only'
-        ? this.previousChar.trim().length === 0
-        : true;
-    if (lastChar === this.state.trigger && wordBoundry) {
-      this.startTracking(menIndex);
-    } else if (lastChar.trim() === '' && this.state.isTrackingStarted) {
-      this.stopTracking();
+
+    console.log('checkForMention', {menIndex, lastChar});
+    if (Platform.OS === 'ios') {
+      const wordBoundry =
+        this.state.triggerLocation === 'new-word-only'
+          ? this.previousChar.trim().length === 0
+          : true;
+
+      if (lastChar === this.state.trigger && wordBoundry) {
+        this.startTracking(menIndex);
+      } else if (lastChar.trim() === '' && this.state.isTrackingStarted) {
+        this.stopTracking();
+      }
+      this.previousChar = lastChar;
+      this.identifyKeyword(inputText);
+    } else {
+      const t = new RegExp(`^${this.state.trigger}[a-zA-Z0-9]*$`);
+      const lastKeyword = inputText.split(/\s/).pop();
+      if (t.test(inputText.split(/\s/).pop())) {
+        this.startTracking(menIndex);
+      } else {
+        this.stopTracking();
+      }
+      this.previousChar = lastChar;
+      this.identifyKeyword(lastKeyword);
     }
-    this.previousChar = lastChar;
-    this.identifyKeyword(inputText);
   }
 
   getInitialAndRemainingStrings(inputText, menIndex) {
@@ -270,7 +313,6 @@ export class Editor extends React.Component {
       menIndex,
     );
 
-    console.log('onSuggestionTap', user);
     // const username = `@${user.username}`;
     const username = `@${user[this.props.displayKey]}`;
     const text = `${initialStr}${username} ${remStr}`;
@@ -293,6 +335,13 @@ export class Editor extends React.Component {
       true,
     );
 
+    console.log('onSuggestionTap', {
+      inputText,
+      text,
+      initialStr,
+      remStr,
+      menIndex,
+    });
     this.setState({
       inputText: text,
       formattedText: this.formatText(text),
@@ -304,6 +353,8 @@ export class Editor extends React.Component {
   handleSelectionChange = ({nativeEvent: {selection}}) => {
     const prevSelc = this.state.selection;
     let newSelc = {...selection};
+
+    console.log({newSelc, prevSelc});
     if (newSelc.start !== newSelc.end) {
       /**
        * if user make or remove selection
@@ -322,7 +373,11 @@ export class Editor extends React.Component {
     // })
     // newSelc = EU.moveCursorToMentionBoundry(newSelc, prevSelc, this.mentionsMap, this.isTrackingStarted);
     // }
-    this.setState({selection: newSelc});
+    this.setState({selection: newSelc}, () => {
+      if (Platform.OS === 'android') {
+        // this.onChange(this.rawInputText);
+      }
+    });
   };
 
   formatMentionNode = (txt, key) => (
@@ -337,7 +392,9 @@ export class Editor extends React.Component {
      * and display them with
      * the different styles
      */
-    if (inputText === '' || !this.mentionsMap.size) return inputText;
+    if (inputText === '' || !this.mentionsMap.size) {
+      return inputText;
+    }
     const formattedText = [];
     let lastIndex = 0;
     this.mentionsMap.forEach((men, [start, end]) => {
@@ -365,7 +422,9 @@ export class Editor extends React.Component {
   }
 
   formatTextWithMentions(inputText) {
-    if (inputText === '' || !this.mentionsMap.size) return inputText;
+    if (inputText === '' || !this.mentionsMap.size) {
+      return inputText;
+    }
     let formattedText = '';
     let lastIndex = 0;
     this.mentionsMap.forEach((men, [start, end]) => {
@@ -393,10 +452,22 @@ export class Editor extends React.Component {
     });
   }
 
+  getSelection = (pre, selection) => {
+    if (this.isSelectionUpdated) {
+      this.isSelectionUpdated = false;
+      return pre;
+    } else {
+      return selection;
+    }
+  };
+
   onChange = (inputText, fromAtBtn) => {
-    // console.log('onChange', inputText);
+    console.log('onChange', inputText);
     let text = inputText;
     const prevText = this.state.inputText;
+    if (prevText === inputText) {
+      return;
+    }
     let selection = {...this.state.selection};
     if (fromAtBtn) {
       //update selection but don't set in state
@@ -511,13 +582,12 @@ export class Editor extends React.Component {
     if (evt) {
       // console.log('onContentSizeChange ---', evt.nativeEvent.contentSize.height);
       // const iosTextHeight = 20.5
-      const androidTextHeight = 20.5;
-      // const textHeight = Platform.OS === 'ios' ? iosTextHeight : androidTextHeight
+      // const androidTextHeight = 20.5;
 
-      const height =
-        Platform.OS === 'ios'
-          ? evt.nativeEvent.contentSize.height
-          : evt.nativeEvent.contentSize.height - androidTextHeight;
+      const height = evt.nativeEvent.contentSize.height;
+      // Platform.OS === 'ios'
+      //   ? evt.nativeEvent.contentSize.height
+      //   : evt.nativeEvent.contentSize.height - androidTextHeight;
       let editorHeight = 0;
       editorHeight = editorHeight + height;
       this.setState({editorHeight});
@@ -530,6 +600,7 @@ export class Editor extends React.Component {
   render() {
     const {props, state} = this;
     const {editorStyles = {}} = props;
+    const {selection, preSelection} = state;
 
     const mentionListProps = {
       list: props.list,
@@ -538,6 +609,8 @@ export class Editor extends React.Component {
       onSuggestionTap: this.onSuggestionTap.bind(this),
       editorStyles,
     };
+
+    console.log('render selection', selection);
 
     return (
       <View style={[styles.main, editorStyles.mainContainer]}>
@@ -583,7 +656,6 @@ export class Editor extends React.Component {
                 )}
               </View>
               <TextInput
-                //ref={input => props.onRef && props.onRef(input)}
                 ref={props.inputRef}
                 style={[styles.input, editorStyles.input]}
                 multiline
@@ -593,7 +665,9 @@ export class Editor extends React.Component {
                 onBlur={this.props.onBlur || props.toggleEditor}
                 onFocus={this.props.onFocus}
                 onChangeText={this.onChange}
-                selection={this.state.selection}
+                selection={
+                  Platform.OS === 'ios' ? this.state.selection : null //this.getSelection(preSelection, selection)
+                }
                 onSelectionChange={this.handleSelectionChange}
                 placeholder={state.placeholder}
                 onContentSizeChange={this.onContentSizeChange}
