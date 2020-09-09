@@ -6,6 +6,8 @@ import EU from './EditorUtils';
 import styles from './EditorStyles';
 import MentionList from '../MentionList';
 
+const EDITOR_HEIGHT = 22;
+
 export class Editor extends React.Component {
   static propTypes = {
     list: PropTypes.array,
@@ -14,10 +16,12 @@ export class Editor extends React.Component {
     onChange: PropTypes.func,
     toggleEditor: PropTypes.func,
     showMentions: PropTypes.bool,
-    onHideMentions: PropTypes.func,
     editorStyles: PropTypes.object,
     placeholder: PropTypes.string,
     renderMentionList: PropTypes.func,
+    onShowMentionList: PropTypes.func,
+    onHideMentionList: PropTypes.func,
+    onKeywordChange: PropTypes.func,
     editable: PropTypes.bool,
     displayKey: PropTypes.string,
     inputRef: PropTypes.object,
@@ -55,10 +59,11 @@ export class Editor extends React.Component {
       },
       menIndex: 0,
       showMentions: false,
-      editorHeight: 72,
+      editorHeight: EDITOR_HEIGHT,
       scrollContentInset: {top: 0, bottom: 0, left: 0, right: 0},
       placeholder: props.placeholder || 'Type something...',
     };
+    this.selection = {start: 0, end: 0};
   }
 
   static getDerivedStateFromProps(nextProps, prevState) {
@@ -125,24 +130,39 @@ export class Editor extends React.Component {
   startTracking(menIndex) {
     this.isTrackingStarted = true;
     this.menIndex = menIndex;
-    this.setState({
-      keyword: '',
-      menIndex,
-      isTrackingStarted: true,
-    });
+    this.setState(
+      {
+        keyword: '',
+        menIndex,
+        isTrackingStarted: true,
+      },
+      () => {
+        const mentionListProps = {
+          list: this.props.list,
+          keyword: this.state.keyword,
+          isTrackingStarted: this.state.isTrackingStarted,
+          onSuggestionTap: this.onSuggestionTap.bind(this),
+        };
+
+        this.props.onShowMentionList?.(mentionListProps);
+      },
+    );
   }
 
   stopTracking() {
     this.isTrackingStarted = false;
     this.setState({isTrackingStarted: false}, () =>
-      this.props.onHideMentions?.(),
+      this.props.onHideMentionList?.(),
     );
   }
 
   updateSuggestions(lastKeyword) {
-    this.setState({
-      keyword: lastKeyword,
-    });
+    this.setState(
+      {
+        keyword: lastKeyword,
+      },
+      () => this.props.onKeywordChange?.(lastKeyword),
+    );
   }
 
   resetTextbox() {
@@ -189,7 +209,7 @@ export class Editor extends React.Component {
     // const lastChar = inputText.substr(inputText.length - 1);
     const lastChar = inputText.substr(menIndex, 1);
 
-    console.log('checkForMention', {menIndex, lastChar});
+    // console.log('checkForMention', {menIndex, lastChar});
     const wordBoundry =
       this.state.triggerLocation === 'new-word-only'
         ? this.previousChar.trim().length === 0
@@ -292,6 +312,7 @@ export class Editor extends React.Component {
       initialStr,
       remStr,
       menIndex,
+      mentionMap: this.mentionsMap,
     });
     this.setState({
       inputText: text,
@@ -305,7 +326,7 @@ export class Editor extends React.Component {
     const prevSelc = this.selection;
     let newSelc = {...selection};
 
-    console.log('onSelectionChange', newSelc);
+    // console.log('onSelectionChange', newSelc);
     if (newSelc.start !== newSelc.end) {
       /**
        * if user make or remove selection
@@ -365,8 +386,8 @@ export class Editor extends React.Component {
       }
     });
 
-    console.log('inputText', inputText);
-    console.log('formattedText', formattedText);
+    // console.log('inputText', inputText);
+    // console.log('formattedText', formattedText);
     return formattedText;
   }
 
@@ -401,20 +422,34 @@ export class Editor extends React.Component {
     });
   }
 
+  findCurrentCursorIndex = (currentText, prevText) => {
+    if (currentText.length > prevText.length) {
+      for (const i in currentText) {
+        if (currentText[i] !== prevText[i]) {
+          const index = Number(i) + 1;
+          return {start: index, end: index};
+        }
+      }
+    }
+
+    if (!currentText) {
+      return {start: 0, end: 0};
+    }
+    if (currentText.length < prevText.length) {
+      for (const i in prevText) {
+        if (currentText[i] !== prevText[i]) {
+          const index = Number(i);
+          return {start: index, end: index};
+        }
+      }
+    }
+  };
+
   onChange = (inputText, fromAtBtn) => {
     this.rawInputText = inputText;
     let text = inputText;
     const prevText = this.state.inputText;
-    // if (Platform.OS === 'android' && this.order !== 2) {
-    //   console.log('onChangeinputText, order is wrong, skip', this.order);
-    //   return;
-    // }
-
-    // let selection = {...this.state.selection};
-    let selection = {start: text.length, end: text.length};
-    // if (Platform.OS === 'android') {
-    //   this.androidSelection = {start: text.length, end: text.length};
-    // }
+    let selection = this.findCurrentCursorIndex(inputText, prevText);
 
     console.log('onChangeinputText', {
       prevText,
@@ -438,6 +473,10 @@ export class Editor extends React.Component {
        */
 
       let charDeleted = Math.abs(text.length - prevText.length);
+      // const totalSelection = {
+      //   start: selection.start - charDeleted,
+      //   end: selection.start - charDeleted, // charDeleted > 1 ? selection.start + charDeleted : selection.start,
+      // };
       const totalSelection = {
         start: selection.start,
         end: charDeleted > 1 ? selection.start + charDeleted : selection.start,
@@ -528,7 +567,7 @@ export class Editor extends React.Component {
     // const text = `${initialStr} @[${user.username}](id:${user.id}) ${remStr}`; //'@[__display__](__id__)' ///find this trigger parsing from react-mentions
 
     this.sendMessageToFooter(text);
-    this.order = 0;
+    this.selectionUpdated = false;
   };
 
   onContentSizeChange = evt => {
@@ -549,47 +588,52 @@ export class Editor extends React.Component {
       let editorHeight = 0;
       editorHeight = editorHeight + height;
 
+      if (this.state.clearInput && this.state.editorHeight < EDITOR_HEIGHT) {
+        return;
+      }
       this.setState({editorHeight});
+      console.log('editorHeight', editorHeight);
       this.props.onContentSizeChange?.(editorHeight);
     }
+  };
+
+  _renderMentionList = () => {
+    if (this.props.onShowMentionList) {
+      return null;
+    }
+
+    const mentionListProps = {
+      list: this.props.list,
+      keyword: this.state.keyword,
+      isTrackingStarted: this.state.isTrackingStarted,
+      onSuggestionTap: this.onSuggestionTap.bind(this),
+      editorStyles: this.props.editorStyles || {},
+    };
+    return this.props.renderMentionList ? (
+      this.props.renderMentionList(mentionListProps)
+    ) : (
+      <MentionList {...mentionListProps} />
+    );
   };
 
   render() {
     const {props, state} = this;
     const {editorStyles = {}} = props;
-    const {selection, menIndex} = state;
+    // const {selection, menIndex} = state;
 
-    const mentionListProps = {
-      list: props.list,
-      keyword: state.keyword,
-      isTrackingStarted: state.isTrackingStarted,
-      onSuggestionTap: this.onSuggestionTap.bind(this),
-      editorStyles,
-    };
-
-    console.log('render selection', selection, menIndex);
+    // console.log('render selection', selection, menIndex);
 
     return (
       <View style={[styles.main, editorStyles.mainContainer]}>
-        {props.renderMentionList ? (
-          props.renderMentionList(mentionListProps)
-        ) : (
-          <MentionList
-            list={props.list}
-            keyword={state.keyword}
-            isTrackingStarted={state.isTrackingStarted}
-            onSuggestionTap={this.onSuggestionTap}
-            editorStyles={editorStyles}
-          />
-        )}
+        {this._renderMentionList()}
         <View style={[styles.container]}>
           <ScrollView
             ref={scroll => {
               this.scroll = scroll;
             }}
-            onContentSizeChange={() => {
-              this.scroll.scrollToEnd({animated: true});
-            }}
+            ///onContentSizeChange={() => {
+            //  this.scroll.scrollToEnd({animated: true});
+            //}}
             style={[styles.editorContainer, editorStyles.editorContainer]}>
             <View style={[{height: this.state.editorHeight}]}>
               <View

@@ -189,6 +189,7 @@ export class Editor extends React.Component {
      */
     const menIndex = selection.start - 1;
     const lastChar = inputText.substr(menIndex, 1);
+    console.log('checkForMention', {menIndex, lastChar});
     const wordBoundry =
       this.state.triggerLocation === 'new-word-only'
         ? this.previousChar.trim().length === 0
@@ -285,6 +286,14 @@ export class Editor extends React.Component {
       true,
     );
 
+    console.log('onSuggestionTap', {
+      inputText,
+      text,
+      initialStr,
+      remStr,
+      menIndex,
+      mentionMap: this.mentionsMap,
+    });
     this.setState({
       inputText: text,
       formattedText: this.formatText(text),
@@ -396,6 +405,11 @@ export class Editor extends React.Component {
     const prevText = this.state.inputText;
     let selection = {...this.state.selection};
 
+    console.log('onChangeinputText', {
+      prevText,
+      inputText,
+      selection,
+    });
     if (fromAtBtn) {
       //update selection but don't set in state
       //it will be auto set by input
@@ -420,6 +434,7 @@ export class Editor extends React.Component {
        */
       if (totalSelection.start === totalSelection.end) {
         //single char deleting
+        console.log('single char deleting', totalSelection);
         const key = EU.findMentionKeyInMap(
           this.mentionsMap,
           totalSelection.start,
