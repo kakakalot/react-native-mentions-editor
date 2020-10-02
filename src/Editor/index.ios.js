@@ -25,11 +25,16 @@ export class Editor extends React.Component {
 
   constructor(props) {
     super(props);
+
     this.mentionsMap = new Map();
     let msg = '';
     let formattedMsg = '';
+
     if (props.initialValue && props.initialValue !== '') {
-      const {map, newValue} = EU.getMentionsWithInputText(props.initialValue);
+      const {map, newValue} = EU.getMentionsWithInputText(
+        props.initialValue,
+        props.displayKey,
+      );
       this.mentionsMap = map;
       msg = newValue;
       formattedMsg = this.formatText(newValue);
@@ -90,7 +95,7 @@ export class Editor extends React.Component {
   componentDidUpdate(prevProps, prevState) {
     const currentText = this.formatTextWithMentions(this.state.inputText);
     if (currentText !== this.state.initialValue) {
-      // console.log('componentDidUpdate', this.state.initialValue, currentText);
+      // console.log('componentDidUpdate', this.state.initialValue);
       const {newValue} = EU.getMentionsWithInputText(this.state.initialValue);
       // console.log('componentDidUpdate 2', newValue);
       const formattedMsg = this.formatText(newValue);

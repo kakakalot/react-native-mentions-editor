@@ -33,7 +33,10 @@ export class Editor extends React.Component {
     let msg = '';
     let formattedMsg = '';
     if (props.initialValue && props.initialValue !== '') {
-      const {map, newValue} = EU.getMentionsWithInputText(props.initialValue);
+      const {map, newValue} = EU.getMentionsWithInputText(
+        props.initialValue,
+        props.displayKey,
+      );
       this.mentionsMap = map;
       msg = newValue;
       formattedMsg = this.formatText(newValue);

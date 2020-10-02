@@ -153,7 +153,7 @@ export const EU = {
   sum: (x, y) => x + y,
   diff: (x, y) => Math.abs(x - y),
   isEmpty: str => str === '',
-  getMentionsWithInputText: inputText => {
+  getMentionsWithInputText: (inputText, displayKey) => {
     /**
      * translate provided string e.g. `Hey @[mrazadar](id:1) this is good work.`
      * populate mentions map with [start, end] : {...user}
@@ -180,7 +180,7 @@ export const EU = {
           const menEndIndex = men.start + (username.length - 1);
           map.set([men.start - endIndexDiff, menEndIndex - endIndexDiff], {
             id: men.id,
-            username: men.username,
+            [displayKey]: men.username,
           });
           //indexes diff with the new formatted string.
           endIndexDiff = endIndexDiff + Math.abs(men.end - menEndIndex);
